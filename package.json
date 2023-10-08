@@ -1,0 +1,19 @@
+{
+  "name": "accounts",
+  "version": "1.0.0",
+  "description": "Sistema ilustrativo de contas bancarias para fins de estudos do core do nodejs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "index.js"
+  },
+  "keywords": [
+    "nodejs"
+  ],
+  "author": "Pablo Matos",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "inquirer": "^9.2.11"
+  }
+}
