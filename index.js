@@ -1,7 +1,8 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk'
 
-import fs from 'fs'
+import fs, { copyFileSync } from 'fs'
+import { error } from 'console';
 
 operation()
 
@@ -26,6 +27,7 @@ function operation() {
                 break;
 
             case 'Depositar':
+                deposit()
                 break;
 
             case 'Sacar':
@@ -52,9 +54,9 @@ function buildAccount() {
     console.clear()
 
     inquirer.prompt({
-
         name: 'accountName',
-        message: 'Digite um nome para a sua conta:'
+        message: 'Digite um nome para a sua conta:',
+
 
     }).then(answer => {
 
@@ -85,22 +87,109 @@ function buildAccount() {
             }, 2000)
         }
 
-        fs.writeFileSync(
-            `accounts/${accountName}.json`,
-            '{"balance": 0}',
-            (error) => console.log(error)
-        )
+        inquirer.prompt({
+            name: 'accountPass',
+            message: 'Crie um senha:'
+        })
+            .then(answer => {
+                const accountPass = answer['accountPass']
 
-        console.log(chalk.bgGreen.black('Parabéns, a sua conta foi criada!'))
+                fs.writeFileSync(
+                    `accounts/${accountName}.json`,
+                    `{"balance": 0, "password": ${accountPass}}`,
+                    (error) => console.log(error)
+                )
 
-        setTimeout(() => {
-            operation()
-        }, 2000)
+                console.log(chalk.bgGreen.black('Parabéns, a sua conta foi criada!'))
+
+                setTimeout(() => {
+                    operation()
+                }, 2000)
+            })
+            .catch(error => console.log(error))
+
+
 
     }).catch((error => {
         console.log(error)
     }))
 
+}
+
+function deposit() {
+    inquirer.prompt([
+        {
+            name: 'accountName',
+            message: 'Qual o nome da sua conta:'
+        }
+    ]).then(answer => {
+        const accountName = answer['accountName']
+
+        if (!checkAccount(accountName)) {
+            return deposit()
+        }
+
+        inquirer.prompt([
+            {
+                name: 'accountPass',
+                message: 'Insira sua senha:'
+            }
+        ]).then(answer => {
+
+            const accountPass = answer['accountPass']
+
+            if (!checkPass(accountName, accountPass)) {
+                console.log(chalk.bgRed.black('Senha incorreta!'))
+                return deposit()
+            }
+
+            inquirer.prompt({
+                name: 'amount',
+                message: 'Quanto você deseja depositar:',
+            }).then(answer => {
+                const amount = answer['amount']
+                addAmount(accountName, amount)
+                // operation()
+            })
+                .catch()
+
+        }).catch(error => console.lor(error))
+
+    }).catch(error => console.lor(error))
+}
+
+function checkAccount(accountName) {
+
+    if (!fs.existsSync(`accounts/${accountName}.json`)) {
+        console.log(chalk.bgRed.black('Esta conta não existe, escolha outro nome!'))
+        return false
+    }
+
+    return true
+}
+
+function checkPass(accountName, accountPass) {
+    const accountData = getAccount(accountName)
+
+    if (JSON.stringify(accountData.password) === accountPass) {
+        return true
+    }
+
+    return false
+
+}
+
+function addAmount(accountName, amount) {
+
+    const account = getAccount(accountName)
+    console.log(account)
+}
+
+function getAccount(accountName) {
+    return JSON.parse(fs.readFileSync(`accounts/${accountName}.json`, {
+        encoding: 'utf8',
+        flag: 'r'
+    }))
 }
 
 function exit() {
