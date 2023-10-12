@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import bcrypt from 'bcrypt'
 
 import fs from 'fs'
+import { error, log } from 'console';
 
 
 operation()
@@ -25,6 +26,7 @@ function operation() {
                 break;
 
             case 'Consultar saldo':
+                balance()
                 break;
 
             case 'Depositar':
@@ -32,6 +34,7 @@ function operation() {
                 break;
 
             case 'Sacar':
+                withdraw()
                 break;
 
             case 'Sair':
@@ -141,8 +144,6 @@ function deposit() {
 
             const accountPass = answer['accountPass']
 
-            console.log(checkPass(accountName,accountPass))
-
             if (!checkPass(accountName, accountPass)) {
                 console.log(chalk.bgRed.black('Senha incorreta!'))
                 return deposit()
@@ -155,12 +156,92 @@ function deposit() {
                 const amount = answer['amount']
                 addAmount(accountName, amount)
                 operation()
-            })
-                .catch()
+            }).catch(error = console.log(error))
 
         }).catch(error => console.log(error))
 
     }).catch(error => console.log(error))
+}
+
+async function balance() {
+    inquirer.prompt([
+        {
+            name: 'accountName',
+            message: 'Qual o nome da sua conta:'
+        }
+    ]).then(answer => {
+        const accountName = answer['accountName']
+
+        if (!checkAccount(accountName)) {
+            return balance()
+        }
+
+        inquirer.prompt([
+            {
+                name: 'accountPass',
+                type: 'password',
+                message: 'Insira sua senha:'
+            }
+        ]).then(answer => {
+
+            const accountPass = answer['accountPass']
+
+            if (!checkPass(accountName, accountPass)) {
+                console.log(chalk.bgRed.black('Senha incorreta!'))
+                return balance()
+            }
+
+            const data = getAccount(accountName)
+            console.log(chalk.bgGreen.black(`Saldo: R$ ${data.balance},00`))
+
+            return returnMenu()
+
+        }).catch(error => console.log(error))
+
+    }).catch(error => console.log(error))
+}
+
+function withdraw() {
+    inquirer.prompt([
+        {
+            name: 'accountName',
+            message: 'Qual o nome da sua conta:'
+        }
+    ]).then(answer => {
+        const accountName = answer['accountName']
+
+        if (!checkAccount(accountName)) {
+            return withdraw()
+        }
+
+        inquirer.prompt([
+            {
+                name: 'accountPass',
+                type: 'password',
+                message: 'Insira sua senha:'
+            }
+        ]).then(answer => {
+
+            const accountPass = answer['accountPass']
+
+            if (!checkPass(accountName, accountPass)) {
+                console.log(chalk.bgRed.black('Senha incorreta!'))
+                return withdraw()
+            }
+
+            inquirer.prompt({
+                name: 'amount',
+                message: 'Quanto você deseja depositar:',
+            }).then(answer => {
+                const amount = answer['amount']
+                subAmount(accountName, amount)
+                operation()
+            }).catch(error => console.log(error))
+
+        }).catch(error => console.log(error))
+
+    }).catch(error => console.log(error))
+
 }
 
 function checkAccount(accountName) {
@@ -208,20 +289,28 @@ function createPass(accountPass, accountName) {
 }
 
 async function checkPass(accountName, accountPass) {
-    const { password: passwordHash } = getAccountUser(accountName)
+    const { password: passwordHash } = getUser(accountName)
 
-    console.log(passwordHash)
     return await bcrypt.compare(accountPass, passwordHash, (error, result) => result)
 }
 
 function addAmount(accountName, amount) {
 
     const account = getAccount(accountName)
-    console.log(account)
 
     fs.writeFileSync(`accounts/${accountName}.json`, `{"balance": ${Number(account.balance) + Number(amount)}}`)
 
 }
+
+function subAmount(accountName, amount) {
+
+    const account = getAccount(accountName)
+
+    fs.writeFileSync(`accounts/${accountName}.json`, `{"balance": ${Number(account.balance) - Number(amount)}}`)
+
+}
+
+
 
 function getAccount(accountName) {
 
@@ -231,12 +320,26 @@ function getAccount(accountName) {
     }))
 }
 
-function getAccountUser(accountName) {
+function getUser(accountName) {
 
     return JSON.parse(fs.readFileSync(`users/${accountName}.json`, {
         encoding: 'utf8',
         flag: 'r'
     }))
+}
+
+function returnMenu() {
+    inquirer.prompt({
+        name: 'backToMenu',
+        type: 'confirm',
+        message: 'Voltar ao menu principal'
+    }).then(answer => {
+        const backToMenu = answer['backToMenu']
+        if (backToMenu) {
+            operation()
+        }
+
+    })
 }
 
 function exit() {
