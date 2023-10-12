@@ -1,8 +1,9 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk'
+import bcrypt from 'bcrypt'
 
-import fs, { copyFileSync } from 'fs'
-import { error } from 'console';
+import fs from 'fs'
+
 
 operation()
 
@@ -66,6 +67,10 @@ function buildAccount() {
             fs.mkdirSync('accounts')
         }
 
+        if (!fs.existsSync('users')) {
+            fs.mkdirSync('users')
+        }
+
         if (fs.existsSync(`accounts/${accountName}.json`)) {
             console.log(chalk.bgRed(`A conta já existe, por favor escolha outro nome!`))
             return setTimeout(() => {
@@ -89,16 +94,13 @@ function buildAccount() {
 
         inquirer.prompt({
             name: 'accountPass',
+            type: 'password',
             message: 'Crie um senha:'
         })
             .then(answer => {
                 const accountPass = answer['accountPass']
 
-                fs.writeFileSync(
-                    `accounts/${accountName}.json`,
-                    `{"balance": 0, "password": ${accountPass}}`,
-                    (error) => console.log(error)
-                )
+                createPass(accountPass, accountName)
 
                 console.log(chalk.bgGreen.black('Parabéns, a sua conta foi criada!'))
 
@@ -132,11 +134,14 @@ function deposit() {
         inquirer.prompt([
             {
                 name: 'accountPass',
+                type: 'password',
                 message: 'Insira sua senha:'
             }
         ]).then(answer => {
 
             const accountPass = answer['accountPass']
+
+            console.log(checkPass(accountName,accountPass))
 
             if (!checkPass(accountName, accountPass)) {
                 console.log(chalk.bgRed.black('Senha incorreta!'))
@@ -149,13 +154,13 @@ function deposit() {
             }).then(answer => {
                 const amount = answer['amount']
                 addAmount(accountName, amount)
-                // operation()
+                operation()
             })
                 .catch()
 
-        }).catch(error => console.lor(error))
+        }).catch(error => console.log(error))
 
-    }).catch(error => console.lor(error))
+    }).catch(error => console.log(error))
 }
 
 function checkAccount(accountName) {
@@ -168,25 +173,67 @@ function checkAccount(accountName) {
     return true
 }
 
-function checkPass(accountName, accountPass) {
-    const accountData = getAccount(accountName)
+function createPass(accountPass, accountName) {
 
-    if (JSON.stringify(accountData.password) === accountPass) {
-        return true
+    if (!accountPass || accountPass === null) {
+        console.log(chalk.bgRed(`Por favor insira um nome válido!`))
+        return setTimeout(() => {
+            buildAccount()
+        }, 2000)
     }
 
-    return false
+    if (accountPass.includes(' ')) {
+        console.log(chalk.bgRed(` O nome da conta não pode conter espaços `))
+        return setTimeout(() => {
+            buildAccount()
+        }, 2000)
+    }
 
+    fs.writeFileSync(
+        `accounts/${accountName}.json`,
+        `{"balance": 0}`,
+        (error) => console.log(error)
+    )
+
+    bcrypt.hash(accountPass, 10, (error, hash) => {
+        if (error) console.log(error)
+
+        fs.writeFileSync(
+            `users/${accountName}.json`,
+            `{"userName":"${accountName}", "password": "${hash}"}`
+        )
+    })
+
+
+}
+
+async function checkPass(accountName, accountPass) {
+    const { password: passwordHash } = getAccountUser(accountName)
+
+    console.log(passwordHash)
+    return await bcrypt.compare(accountPass, passwordHash, (error, result) => result)
 }
 
 function addAmount(accountName, amount) {
 
     const account = getAccount(accountName)
     console.log(account)
+
+    fs.writeFileSync(`accounts/${accountName}.json`, `{"balance": ${Number(account.balance) + Number(amount)}}`)
+
 }
 
 function getAccount(accountName) {
+
     return JSON.parse(fs.readFileSync(`accounts/${accountName}.json`, {
+        encoding: 'utf8',
+        flag: 'r'
+    }))
+}
+
+function getAccountUser(accountName) {
+
+    return JSON.parse(fs.readFileSync(`users/${accountName}.json`, {
         encoding: 'utf8',
         flag: 'r'
     }))
